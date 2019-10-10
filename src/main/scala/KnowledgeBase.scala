@@ -1,5 +1,7 @@
-import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io._
 import java.nio.file.{Files, Paths}
+
+import scala.io.Source
 
 case class KnowledgeBase(
                           var objectsArray: Array[String],
@@ -7,11 +9,38 @@ case class KnowledgeBase(
                           var valueMatrix: Array[Array[Boolean]]
                         ) {
   def write: Boolean = {
-    Files.deleteIfExists(Paths.get(KnowledgeBase.path))
-    val objectOutputStream = new ObjectOutputStream(new FileOutputStream(KnowledgeBase.path))
-    objectOutputStream.writeObject(this)
-    objectOutputStream.close()
-    Files.exists(Paths.get(KnowledgeBase.path))
+    if (Files.notExists(Paths.get(KnowledgeBase.directoryPath))) Files.createDirectory(Paths.get(KnowledgeBase.directoryPath))
+    writeObjects && writeChars && writeMatrix
+  }
+
+  private def writeObjects: Boolean = {
+    Files.deleteIfExists(Paths.get(KnowledgeBase.objectsPath))
+    val objectsFile = new File(KnowledgeBase.objectsPath)
+    val printWriter = new PrintWriter(objectsFile)
+    printWriter.write(objectsArray.mkString("\n"))
+    printWriter.close()
+    objectsFile.length > 0
+  }
+
+  private def writeChars: Boolean = {
+    Files.deleteIfExists(Paths.get(KnowledgeBase.charsPath))
+    val charsFile = new File(KnowledgeBase.charsPath)
+    val printWriter = new PrintWriter(charsFile)
+    printWriter.write(charsArray.mkString("\n"))
+    printWriter.close()
+    charsFile.length > 0
+  }
+
+  private def writeMatrix: Boolean = {
+    Files.deleteIfExists(Paths.get(KnowledgeBase.valueMatrixPath))
+    val matrixFile = new File(KnowledgeBase.valueMatrixPath)
+    val printWriter = new PrintWriter(matrixFile)
+    printWriter.write(valueMatrix.map(_.map {
+      case false => 0
+      case true => 1
+    }.mkString(" ")).mkString("\n"))
+    printWriter.close()
+    matrixFile.length > 0
   }
 
   def print: Unit = {
@@ -24,12 +53,34 @@ case class KnowledgeBase(
 
 object KnowledgeBase {
   private val rootPath: String = Paths.get("").toAbsolutePath.toString
-  private val path = s"$rootPath/src/resources/knowledge_base"
+  private val directoryPath = s"$rootPath/src/resources/knowledge_base"
+  private val objectsPath = s"$directoryPath/objects.txt"
+  private val charsPath = s"$directoryPath/characteristics.txt"
+  private val valueMatrixPath = s"$directoryPath/matrix.txt"
 
-  def read: KnowledgeBase = {
-    val objectInputStream = new ObjectInputStream(new FileInputStream(path))
-    val knowledgeBase = objectInputStream.readObject.asInstanceOf[KnowledgeBase]
-    objectInputStream.close()
-    knowledgeBase
+  def read: KnowledgeBase = KnowledgeBase(readObjects, readChars, readMatrix)
+
+  private def readObjects: Array[String] = {
+    val source = Source.fromFile(objectsPath)
+    val objectArray = source.getLines().toArray
+    source.close()
+    objectArray
+  }
+
+  private def readChars: Array[String] = {
+    val source = Source.fromFile(charsPath)
+    val charsArray = source.getLines().toArray
+    source.close()
+    charsArray
+  }
+
+  private def readMatrix: Array[Array[Boolean]] = {
+    val source = Source.fromFile(valueMatrixPath)
+    val valueMatrix = source.getLines().map(line => line.split(" ").map {
+      case "0" => false
+      case "1" => true
+    }).toArray
+    source.close()
+    valueMatrix
   }
 }
